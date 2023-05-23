@@ -21,8 +21,6 @@
 
 #include "platform.h"
 
-FILE_COMPILE_FOR_SPEED
-
 #include "build/debug.h"
 
 #include "common/axis.h"
@@ -92,16 +90,6 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .appliedMixerPreset = SETTING_MODEL_PREVIEW_TYPE_DEFAULT, //This flag is not available in CLI and used by Configurator only
     .outputMode = SETTING_OUTPUT_MODE_DEFAULT,
 );
-
-#ifdef BRUSHED_MOTORS
-#define DEFAULT_PWM_PROTOCOL    PWM_TYPE_BRUSHED
-#define DEFAULT_PWM_RATE        16000
-#else
-#define DEFAULT_PWM_PROTOCOL    PWM_TYPE_ONESHOT125
-#define DEFAULT_PWM_RATE        400
-#endif
-
-#define DEFAULT_MAX_THROTTLE    1850
 
 PG_REGISTER_WITH_RESET_TEMPLATE(motorConfig_t, motorConfig, PG_MOTOR_CONFIG, 9);
 
@@ -350,6 +338,7 @@ static void applyTurtleModeToMotors(void) {
 
 void FAST_CODE writeMotors(void)
 {
+#if !defined(SITL_BUILD)
     for (int i = 0; i < motorCount; i++) {
         uint16_t motorValue;
 
@@ -432,6 +421,7 @@ void FAST_CODE writeMotors(void)
 
         pwmWriteMotor(i, motorValue);
     }
+#endif
 }
 
 void writeAllMotors(int16_t mc)
@@ -452,7 +442,10 @@ void stopMotors(void)
 
 void stopPwmAllMotors(void)
 {
+#if !defined(SITL_BUILD)
     pwmShutdownPulsesForAllMotors(motorCount);
+#endif
+
 }
 
 static int getReversibleMotorsThrottleDeadband(void)
@@ -619,9 +612,16 @@ void FAST_CODE mixTable()
     }
 }
 
-int16_t getThrottlePercent(void)
+int16_t getThrottlePercent(bool useScaled)
 {
-    int16_t thr = (constrain(rcCommand[THROTTLE], PWM_RANGE_MIN, PWM_RANGE_MAX ) - getThrottleIdleValue()) * 100 / (motorConfig()->maxthrottle - getThrottleIdleValue());
+    int16_t thr = constrain(rcCommand[THROTTLE], PWM_RANGE_MIN, PWM_RANGE_MAX);
+    const int idleThrottle = getThrottleIdleValue();
+    
+    if (useScaled) {
+       thr = (thr - idleThrottle) * 100 / (motorConfig()->maxthrottle - idleThrottle);
+    } else {
+        thr = (rxGetChannelValue(THROTTLE) - PWM_RANGE_MIN) * 100 / (PWM_RANGE_MAX - PWM_RANGE_MIN);
+    }
     return thr;
 }
 
@@ -636,11 +636,8 @@ motorStatus_e getMotorStatus(void)
     }
 
     const bool fixedWingOrAirmodeNotActive = STATE(FIXED_WING_LEGACY) || !STATE(AIRMODE_ACTIVE);
-    const bool throttleStickLow =
-        (calculateThrottleStatus(feature(FEATURE_REVERSIBLE_MOTORS) ? THROTTLE_STATUS_TYPE_COMMAND : THROTTLE_STATUS_TYPE_RC) == THROTTLE_LOW);
 
-    if (throttleStickLow && fixedWingOrAirmodeNotActive) {
-
+    if (throttleStickIsLow() && fixedWingOrAirmodeNotActive) {
         if ((navConfig()->general.flags.nav_overrides_motor_stop == NOMS_OFF_ALWAYS) && failsafeIsActive()) {
             // If we are in failsafe and user was holding stick low before it was triggered and nav_overrides_motor_stop is set to OFF_ALWAYS
             // and either on a plane or on a quad with inactive airmode - stop motor
@@ -662,7 +659,6 @@ motorStatus_e getMotorStatus(void)
                     return MOTOR_STOPPED_USER;
             }
         }
-
     }
 
     return MOTOR_RUNNING;

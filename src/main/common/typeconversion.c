@@ -21,7 +21,6 @@
 
 #include "maths.h"
 #include "platform.h"
-FILE_COMPILE_FOR_SPEED
 
 #ifdef REQUIRE_PRINTF_LONG_SUPPORT
 
@@ -322,7 +321,7 @@ int fastA2I(const char *s)
     }
 
     while ((digit = a2d(*s)) >= 0) {
-        if (digit > 10)
+        if (digit > 9)
             break;
         num = num * 10 + digit;
         s++;

@@ -10,10 +10,9 @@ Telemetry is enabled using the 'TELEMETRY' feature.
 feature TELEMETRY
 ```
 
-Multiple telemetry providers are currently supported, FrSky, Graupner
-HoTT V4, SmartPort (S.Port) and LightTelemetry (LTM)
+Multiple telemetry providers are currently supported, FrSky, Graupner HoTT V4, SmartPort (S.Port), LightTelemetry (LTM). MAVLink, IBUS, Crossfire and GSM SMS.
 
-All telemetry systems use serial ports, configure serial ports to use the telemetry system required.
+All telemetry systems use serial ports, configure serial ports to use the telemetry system required. Multiple telemetry streams may be enabled, but only one of each type, e.g. Smartport + LTM or MAVLink + CRSF.
 
 ## SmartPort (S.Port) telemetry
 
@@ -115,7 +114,7 @@ The following sensors are transmitted
   * **C** : number of satellites locked (digit C & D are the number of locked satellites)
   * **D** : number of satellites locked (if 14 satellites are locked, C = 1 & D = 4)
 * **GAlt** : GPS altitude, sea level is zero.
-* **ASpd** : true air speed, from pitot sensor.
+* **ASpd** : true air speed, from pitot sensor. This is _Knots * 10_
 * **A4** : average cell value. Warning : unlike FLVSS and MLVSS sensors, you do not get actual lowest value of a cell, but an average : (total lipo voltage) / (number of cells)
 * **0420** : distance to GPS home fix, in meters
 * **0430** : if `frsky_pitch_roll = ON` set this will be pitch degrees*10
@@ -125,40 +124,6 @@ The following sensors are transmitted
 ### Compatible SmartPort/INAV telemetry flight status
 
 To quickly and easily monitor these SmartPort sensors and flight modes, install [OpenTX Telemetry Widget](https://github.com/iNavFlight/OpenTX-Telemetry-Widget) to your Taranis Q X7, X9D, X9D+ or X9E transmitter.
-
-## FrSky telemetry
-
-FrSky telemetry is for older FrSky transmitters and D-series receivers.  For newer transmitters paired with X-series receivers see SmartPort (S.Port) telemetry above.
-
-FrSky telemetry is transmit only and just requires a single connection from the TX pin of a serial port to the RX pin on an FrSky telemetry receiver.
-
-FrSky telemetry signals are inverted.  To connect a INAV capable board to an FrSKy receiver you have some options.
-
-1. A hardware inverter - Built in to some flight controllers.
-2. Use software serial.
-3. Use a flight controller that has software configurable hardware inversion (e.g. F3 or F7).
-
-For 1, just connect your inverter to a usart or software serial port.
-
-For 2 and 3 use the CLI command as follows:
-
-```
-set telemetry_inverted = OFF
-```
-
-### Precision setting for VFAS
-
-INAV can send VFAS (FrSky Ampere Sensor Voltage) in two ways:
-
-```
-set frsky_vfas_precision  = 0
-```
-This is default setting which supports VFAS resolution of 0.2 volts and is supported on all FrSky hardware.
-
-```
-set frsky_vfas_precision  = 1
-```
-This is new setting which supports VFAS resolution of 0.1 volts and is supported by OpenTX and er9x/ersky9x firmware (this method uses custom ID 0x39).
 
 
 ### Notes
@@ -204,50 +169,38 @@ Note: The SoftSerial ports may not be 5V tolerant on your board.  Verify if you 
 
 ## LightTelemetry (LTM)
 
-LTM is a lightweight streaming telemetry protocol supported by a
-number of OSDs, ground stations and antenna trackers.
+LTM is a lightweight streaming telemetry protocol supported by a number of OSDs, ground stations and antenna trackers.
 
 The INAV implementation of LTM implements the following frames:
 
-* G-FRAME: GPS information (lat, long, ground speed, altitude, sat
-  info)
+* G-FRAME: GPS information (lat, long, ground speed, altitude, sat info)
 * A-FRAME: Attitude (pitch, roll, heading)
-* S-FRAME: Status (voltage, current+, RSSI, airspeed+, status). Item
-  suffixed '+' not implemented in INAV.
+* S-FRAME: Status (voltage, current+, RSSI, airspeed+, status). Item suffixed '+' not implemented in INAV.
 * O-FRAME: Origin (home position, lat, long, altitude, fix)
 
-In addition, in  iNav:
+In addition, in INAV:
 
-* N-FRAME: Navigation information (GPS mode, Nav mode, Nav action,
-  Waypoint number, Nav Error, Nav Flags).
+* N-FRAME: Navigation information (GPS mode, Nav mode, Nav action, Waypoint number, Nav Error, Nav Flags).
 * X-FRAME: Extra information. Currently HDOP is reported.
 
-LTM is transmit only, and can work at any supported baud rate. It is
-designed to operate over 2400 baud (9600 in INAV) and does not
-benefit from higher rates. It is thus usable on soft serial.
+LTM is transmit only, and can work at any supported baud rate. It is designed to operate over 2400 baud (9600 in INAV) and does not benefit from higher rates. It is thus usable on soft serial.
 
-A CLI variable `ltm_update_rate` may be used to configure the update
-rate and hence band-width used by LTM, with the following enumerations:
+A CLI variable `ltm_update_rate` may be used to configure the update rate and hence band-width used by LTM, with the following enumerations:
 
 * NORMAL: Legacy rate, currently 303 bytes/second (requires 4800 bps)
 * MEDIUM: 164 bytes/second (requires 2400 bps)
 * SLOW: 105 bytes/second (requires 1200 bps)
 
-For many telemetry devices, there is direction correlation between the
-air-speed of the radio link and range; thus a lower value may
-facilitate longer range links.
+For many telemetry devices, there is direction correlation between the air-speed of the radio link and range; thus a lower value may facilitate longer range links.
 
-More information about the fields, encoding and enumerations may be
-found at https://github.com/iNavFlight/inav/wiki/Lightweight-Telemetry-(LTM).
+More information about the fields, encoding and enumerations may be found [on the wiki](https://github.com/iNavFlight/inav/wiki/Lightweight-Telemetry-(LTM)).
 
 
 ## MAVLink telemetry
 
-MAVLink is a very lightweight, header-only message marshalling library for micro air vehicles.
-INAV supports MAVLink for compatibility with ground stations, OSDs and antenna trackers built
-for PX4, PIXHAWK, APM and Parrot AR.Drone platforms.
+MAVLink is a lightweight header-only message marshalling library for micro air vehicles. INAV supports MAVLink for compatibility with ground stations, OSDs and antenna trackers built for PX4, PIXHAWK, APM and Parrot AR.Drone platforms.
 
-MAVLink implementation in INAV is transmit-only and usable on low baud rates and can be used over soft serial.
+MAVLink implementation in INAV is transmit-only and usable on low baud rates and can be used over soft serial (requires 19200 baud). MAVLink V1 and V2 are supported.
 
 
 ## Cellular telemetry via text messages
@@ -375,7 +328,7 @@ sensor 10 is of type GALT,
 sensor 12 is of type GPS_LON,
 sensor 13 is of type GPS_LAT,
 sensor 14 is of type ACC_X,
-sensor 15 is of type ACC_Y, 
+sensor 15 is of type ACC_Y,
 sensor 16 is of type SPEED.
 
 4.This same as 3, but support 4 byte sensors. (fix_updater_03_16_21_33_1 from https://github.com/qba667/FlySkyI6/tree/master/release):
